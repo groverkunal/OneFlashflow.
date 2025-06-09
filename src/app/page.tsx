@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useCallback, useTransition } from 'react';
@@ -18,6 +19,7 @@ export default function FlashFlowPage() {
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
+  const [inputAreaKey, setInputAreaKey] = useState(0); // Key for resetting InputArea
 
   const handleTextReady = useCallback((text: string) => {
     setTextToProcess(text);
@@ -59,9 +61,9 @@ export default function FlashFlowPage() {
 
   const resetProcess = () => {
     setFlashcards([]);
-    // Optionally reset text and agents:
-    // setTextToProcess("");
-    // setSelectedAgents(AGENT_PROFILES.slice(0,3).map(ap => ap.id));
+    setTextToProcess(""); // Clear the processed text
+    setSelectedAgents(AGENT_PROFILES.slice(0,3).map(ap => ap.id)); // Reset agents to default
+    setInputAreaKey(prevKey => prevKey + 1); // Change key to force InputArea to re-mount and reset its internal state
   };
 
   return (
@@ -83,7 +85,7 @@ export default function FlashFlowPage() {
           <FlashcardViewer flashcards={flashcards} onReset={resetProcess} />
         ) : (
           <div className="space-y-8">
-            <InputArea onTextReady={handleTextReady} isLoading={isPending} />
+            <InputArea key={inputAreaKey} onTextReady={handleTextReady} isLoading={isPending} />
             <AgentSelector 
               agents={AGENT_PROFILES} 
               selectedAgents={selectedAgents} 
