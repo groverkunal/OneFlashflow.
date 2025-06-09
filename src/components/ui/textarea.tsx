@@ -1,9 +1,10 @@
+
 import * as React from 'react';
 
 import {cn} from '@/lib/utils';
 
 const Textarea = React.forwardRef<HTMLTextAreaElement, React.ComponentProps<'textarea'>>(
-  ({className, ...props}, ref) => {
+  ({className, spellCheck: spellCheckProp, ...props}, ref) => {
     return (
       <textarea
         className={cn(
@@ -11,6 +12,8 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, React.ComponentProps<'tex
           className
         )}
         ref={ref}
+        spellCheck={spellCheckProp === undefined ? false : spellCheckProp}
+        suppressHydrationWarning
         {...props}
       />
     );
