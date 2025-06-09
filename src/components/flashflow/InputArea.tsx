@@ -27,8 +27,8 @@ export function InputArea({ onTextReady, isLoading }: InputAreaProps) {
         const reader = new FileReader();
         reader.onload = (e) => {
           const text = e.target?.result as string;
-          setPastedText(text); // Update textarea with file content
-          onTextReady(text); // Propagate text up
+          setPastedText(text);
+          onTextReady(text);
         };
         reader.readAsText(file);
       } else {
@@ -37,18 +37,17 @@ export function InputArea({ onTextReady, isLoading }: InputAreaProps) {
           description: `Currently, only .txt files can be automatically processed. For ${file.type}, please copy and paste the content.`,
           variant: "destructive",
         });
-        // Reset file input if not a TXT to allow re-selection or pasting
         event.target.value = ""; 
         setFileName(null);
       }
     }
   }, [onTextReady, toast]);
 
-  const handleTextChange = (event: React.ChangeEvent<Textarea>) => {
+  const handleTextChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => { // Changed to HTMLTextAreaElement
     const newText = event.target.value;
     setPastedText(newText);
     onTextReady(newText);
-     if (newText && fileName) { // If user types after uploading a file, clear filename
+     if (newText && fileName) { 
         setFileName(null); 
         const fileInput = document.getElementById('file-upload') as HTMLInputElement;
         if (fileInput) fileInput.value = "";
@@ -56,15 +55,15 @@ export function InputArea({ onTextReady, isLoading }: InputAreaProps) {
   };
   
   return (
-    <Card className="w-full shadow-lg">
+    <Card className="w-full"> {/* Removed shadow-lg */}
       <CardHeader>
-        <CardTitle className="font-headline text-2xl">Provide Your Content</CardTitle>
+        <CardTitle className="font-semibold text-xl">Provide Your Content</CardTitle> {/* Adjusted font-headline and text size */}
         <CardDescription>Upload a .txt file or paste your text below.</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-4"> {/* Reduced spacing */}
         <div className="space-y-2">
-          <Label htmlFor="file-upload" className="flex items-center gap-2 cursor-pointer">
-            <UploadCloud className="w-5 h-5 text-primary" />
+          <Label htmlFor="file-upload" className="flex items-center gap-2 cursor-pointer text-sm font-medium"> {/* Explicitly set font style */}
+            <UploadCloud className="w-4 h-4 text-primary" /> {/* Slightly smaller icon */}
             <span>Upload File</span>
           </Label>
           <Input 
@@ -72,10 +71,10 @@ export function InputArea({ onTextReady, isLoading }: InputAreaProps) {
             type="file" 
             onChange={handleFileChange} 
             accept=".txt,.pdf,.docx" 
-            className="border-dashed border-2 p-4 hover:border-primary transition-colors"
+            className="p-2 hover:border-primary transition-colors" // Removed border-dashed, simplified padding
             disabled={isLoading}
           />
-          {fileName && <p className="text-sm text-muted-foreground">Uploaded: {fileName}</p>}
+          {fileName && <p className="text-xs text-muted-foreground">Uploaded: {fileName}</p>} {/* Smaller text */}
         </div>
         
         <div className="relative">
@@ -90,13 +89,13 @@ export function InputArea({ onTextReady, isLoading }: InputAreaProps) {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="text-input">Paste Text</Label>
+          <Label htmlFor="text-input" className="text-sm font-medium">Paste Text</Label> {/* Explicitly set font style */}
           <Textarea
             id="text-input"
             placeholder="Paste your content here..."
             value={pastedText}
             onChange={handleTextChange}
-            rows={10}
+            rows={8} // Reduced rows
             className="resize-none"
             disabled={isLoading}
           />

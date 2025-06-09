@@ -10,8 +10,9 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        headline: ['Belleza', 'sans-serif'],
-        body: ['Alegreya', 'serif'],
+        sans: ['Inter', 'sans-serif'],
+        headline: ['Inter', 'sans-serif'], // Use Inter for headlines
+        body: ['Inter', 'serif'],       // Use Inter for body, serif fallback
         code: ['monospace'],
       },
       colors: {
@@ -67,9 +68,9 @@ export default {
         },
       },
       borderRadius: {
-        lg: 'var(--radius)',
-        md: 'calc(var(--radius) - 2px)',
-        sm: 'calc(var(--radius) - 4px)',
+        lg: 'var(--radius)', // 0.5rem
+        md: 'calc(var(--radius) - 2px)', // 0.375rem
+        sm: 'calc(var(--radius) - 4px)', // 0.25rem
       },
       keyframes: {
         'accordion-down': {
