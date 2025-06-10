@@ -1,175 +1,132 @@
 
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { FlashcardItem } from "./FlashcardItem";
 import { Button } from "@/components/ui/button";
-import { AppProgressBar } from "./AppProgressBar";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import type { GenerateFlashcardsOutput } from "@/ai/flows/generate-flashcards";
-import { ChevronLeft, ChevronRight, RotateCcw, Play, Pause } from 'lucide-react';
+import { Play, Pause } from 'lucide-react';
 
 type FlashcardData = GenerateFlashcardsOutput["flashcards"][0];
 
 interface FlashcardViewerProps {
   flashcards: FlashcardData[];
-  onReset: () => void;
 }
 
-const AUTOSCROLL_INTERVAL_MS = 5000; // 5 seconds
+const AUTOSCROLL_TICK_MS = 50; // Interval for each scroll step
+const SCROLL_PIXELS_PER_TICK = 2; // Pixels to scroll per tick
 
-export function FlashcardViewer({ flashcards, onReset }: FlashcardViewerProps) {
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [isAnimating, setIsAnimating] = useState(false);
+export function FlashcardViewer({ flashcards }: FlashcardViewerProps) {
   const [isAutoScrolling, setIsAutoScrolling] = useState(false);
+  const scrollViewportRef = useRef<HTMLDivElement>(null);
+  const autoScrollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const userHasScrolledRef = useRef(false);
 
-  // Function to advance to the next card, used by auto-scroll
-  const autoAdvance = useCallback(() => {
-    if (isAnimating) return; // Don't advance if already animating
-    if (currentIndex < flashcards.length - 1) {
-      setIsAnimating(true);
-      setTimeout(() => {
-        setCurrentIndex(prev => prev + 1);
-        setIsAnimating(false);
-      }, 300); // Match animation duration
-    } else {
-      // Reached the end during auto-scroll
-      setIsAutoScrolling(false);
+  const stopAutoScroll = useCallback(() => {
+    if (autoScrollIntervalRef.current) {
+      clearInterval(autoScrollIntervalRef.current);
+      autoScrollIntervalRef.current = null;
     }
-  }, [currentIndex, flashcards.length, isAnimating]);
+    setIsAutoScrolling(false);
+  }, []);
 
-  // Manual navigation: Next
-  const handleNextManual = useCallback(() => {
-    if (isAnimating) return;
-    setIsAutoScrolling(false); // Stop auto-scroll on manual interaction
-    if (currentIndex < flashcards.length - 1) {
-      setIsAnimating(true);
-      setTimeout(() => {
-        setCurrentIndex(prev => prev + 1);
-        setIsAnimating(false);
-      }, 300);
-    }
-  }, [currentIndex, flashcards.length, isAnimating]);
+  const startAutoScroll = useCallback(() => {
+    if (autoScrollIntervalRef.current) clearInterval(autoScrollIntervalRef.current);
+    userHasScrolledRef.current = false; // Reset user scroll flag
 
-  // Manual navigation: Previous
-  const handlePreviousManual = useCallback(() => {
-    if (isAnimating) return;
-    setIsAutoScrolling(false); // Stop auto-scroll on manual interaction
-    if (currentIndex > 0) {
-      setIsAnimating(true);
-      setTimeout(() => {
-        setCurrentIndex(prev => prev - 1);
-        setIsAnimating(false);
-      }, 300);
+    const container = scrollViewportRef.current;
+    if (!container) return;
+
+    // If at the bottom, scroll to top before starting
+    if (container.scrollTop + container.clientHeight >= container.scrollHeight - 5) { // -5 for buffer
+      container.scrollTop = 0;
     }
-  }, [currentIndex, isAnimating]);
-  
-  // Effect to handle keydown for navigation
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'ArrowRight') {
-        handleNextManual();
-      } else if (event.key === 'ArrowLeft') {
-        handlePreviousManual();
+    
+    setIsAutoScrolling(true);
+
+    autoScrollIntervalRef.current = setInterval(() => {
+      if (userHasScrolledRef.current) {
+        stopAutoScroll();
+        return;
       }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [handleNextManual, handlePreviousManual]);
-
-  // Auto-scroll effect
-  useEffect(() => {
-    let timerId: NodeJS.Timeout;
-    if (isAutoScrolling && flashcards.length > 0 && !isAnimating) {
-      if (currentIndex < flashcards.length - 1) {
-        timerId = setTimeout(autoAdvance, AUTOSCROLL_INTERVAL_MS);
-      } else {
-        // Reached the end, stop auto-scrolling
-        setIsAutoScrolling(false);
+      if (container) {
+        if (container.scrollTop + container.clientHeight >= container.scrollHeight) {
+          // Reached bottom, scroll to top to loop
+          container.scrollTop = 0;
+        } else {
+          container.scrollTop += SCROLL_PIXELS_PER_TICK;
+        }
       }
-    }
-    return () => clearTimeout(timerId);
-  }, [isAutoScrolling, currentIndex, flashcards.length, autoAdvance, isAnimating]);
-
+    }, AUTOSCROLL_TICK_MS);
+  }, [stopAutoScroll]);
 
   const toggleAutoScroll = () => {
-    if (isAnimating) return;
-    setIsAutoScrolling(prevIsAutoScrolling => {
-      const newIsAutoScrolling = !prevIsAutoScrolling;
-      if (newIsAutoScrolling && currentIndex === flashcards.length - 1 && flashcards.length > 0) {
-        // If at the end and turning ON auto-scroll, restart from the beginning
-        setCurrentIndex(0); 
-        // The auto-scroll useEffect will pick this up and start.
-      }
-      return newIsAutoScrolling;
-    });
+    if (isAutoScrolling) {
+      stopAutoScroll();
+    } else {
+      startAutoScroll();
+    }
   };
 
-  const handleResetViewer = () => {
-    setIsAutoScrolling(false);
-    setCurrentIndex(0);
-    onReset(); // Call the original reset passed via props
-  };
+  // Cleanup interval on component unmount or when flashcards change
+  useEffect(() => {
+    return () => {
+      stopAutoScroll();
+    };
+  }, [stopAutoScroll, flashcards]);
+
+  // Detect manual scroll to pause auto-scroll
+  useEffect(() => {
+    const container = scrollViewportRef.current;
+    const handleManualScroll = () => {
+      if (isAutoScrolling) {
+        userHasScrolledRef.current = true; // Mark that user scrolled
+        stopAutoScroll(); // Stop auto-scroll immediately
+      }
+    };
+
+    if (container) {
+      container.addEventListener('scroll', handleManualScroll, { passive: true });
+    }
+    return () => {
+      if (container) {
+        container.removeEventListener('scroll', handleManualScroll);
+      }
+    };
+  }, [isAutoScrolling, stopAutoScroll]);
+
 
   if (!flashcards || flashcards.length === 0) {
     return (
-      <div className="text-center py-10">
+      <div className="h-full flex flex-col items-center justify-center p-4 border rounded-lg bg-card">
         <p className="text-muted-foreground">No flashcards to display.</p>
-        <Button onClick={handleResetViewer} variant="outline" className="mt-4">
-          <RotateCcw className="mr-2 h-4 w-4" /> Start Over
-        </Button>
       </div>
     );
   }
 
   return (
-    <div className="w-full flex flex-col items-center space-y-6">
-      <AppProgressBar currentIndex={currentIndex} totalCount={flashcards.length} />
-      
-      <div className="w-full max-w-2xl h-[450px] relative overflow-hidden">
-        {flashcards.map((card, index) => (
-          <div
-            key={index}
-            className="absolute w-full h-full transition-opacity duration-300 ease-in-out"
-            style={{
-              opacity: index === currentIndex && !isAnimating ? 1 : 0,
-              zIndex: index === currentIndex ? 10 : 1,
-            }}
-          >
-            {/* Render current card, and adjacent cards during animation for smoother transitions */}
-            {(index === currentIndex || (isAnimating && (index === currentIndex -1 || index === currentIndex + 1))) &&
-              <FlashcardItem flashcard={card} isActive={index === currentIndex && !isAnimating} />
-            }
-          </div>
-        ))}
-      </div>
-
-      <div className="flex justify-around items-center w-full max-w-2xl">
-        <Button onClick={handlePreviousManual} disabled={currentIndex === 0 || isAnimating} variant="outline" size="lg">
-          <ChevronLeft className="mr-2 h-5 w-5" /> Previous
-        </Button>
-        
-        <Button 
-          onClick={toggleAutoScroll} 
-          disabled={isAnimating || flashcards.length <= 1} 
-          variant="outline" 
-          size="lg" 
+    <div className="w-full h-full flex flex-col bg-card border rounded-lg shadow-sm">
+      <div className="p-4 border-b flex justify-between items-center">
+        <h3 className="text-lg font-semibold">Generated Flashcards ({flashcards.length})</h3>
+        <Button
+          onClick={toggleAutoScroll}
+          disabled={flashcards.length <= 1}
+          variant="outline"
+          size="sm"
           aria-label={isAutoScrolling ? "Pause auto-scroll" : "Start auto-scroll"}
-          className="min-w-[120px] sm:min-w-[140px]" // Adjusted min-width
         >
-          {isAutoScrolling ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
+          {isAutoScrolling ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
           <span className="ml-2 hidden sm:inline">{isAutoScrolling ? "Pause" : "Play"}</span>
         </Button>
-
-        <Button onClick={handleNextManual} disabled={currentIndex === flashcards.length - 1 || isAnimating} variant="outline" size="lg">
-          Next <ChevronRight className="ml-2 h-5 w-5" />
-        </Button>
       </div>
-      <Button onClick={handleResetViewer} variant="ghost" className="mt-6 text-primary hover:text-primary/80">
-        <RotateCcw className="mr-2 h-4 w-4" /> Generate New Flashcards
-      </Button>
+      <ScrollArea className="flex-grow" viewportRef={scrollViewportRef}>
+        <div className="p-4 space-y-4">
+          {flashcards.map((card, index) => (
+            <FlashcardItem key={index} flashcard={card} />
+          ))}
+        </div>
+      </ScrollArea>
     </div>
   );
 }

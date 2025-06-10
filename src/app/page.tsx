@@ -9,11 +9,10 @@ import { FlashcardViewer } from "@/components/flashflow/FlashcardViewer";
 import { AGENT_PROFILES, type AgentProfile } from "@/config/agent-profiles";
 import { generateFlashcards, type GenerateFlashcardsOutput, type GenerateFlashcardsInput } from "@/ai/flows/generate-flashcards";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Sparkles } from 'lucide-react';
+import { Loader2, Sparkles, RotateCcw } from 'lucide-react';
 
 type Flashcard = GenerateFlashcardsOutput["flashcards"][0];
 
-// Helper to initialize descriptions from profiles
 const getDefaultAgentDescriptions = (): Record<string, string> => {
   return AGENT_PROFILES.reduce((acc, agent) => {
     acc[agent.id] = agent.description;
@@ -29,7 +28,7 @@ export default function FlashFlowPage() {
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
-  const [inputAreaKey, setInputAreaKey] = useState(0);
+  const [inputAreaKey, setInputAreaKey] = useState(Date.now()); // Use Date.now() for a unique key
 
   const handleTextReady = useCallback((text: string) => {
     setTextToProcess(text);
@@ -62,11 +61,11 @@ export default function FlashFlowPage() {
       try {
         const agentsToPass: GenerateFlashcardsInput['agents'] = selectedAgentIds.map(id => {
           const profile = AGENT_PROFILES.find(p => p.id === id);
-          if (!profile) throw new Error(`Agent profile not found for id: ${id}`); // Should not happen
+          if (!profile) throw new Error(`Agent profile not found for id: ${id}`);
           return {
             id: profile.id,
             name: profile.name,
-            description: agentDescriptions[id] || profile.description, // Use edited or default
+            description: agentDescriptions[id] || profile.description,
           };
         });
 
@@ -88,10 +87,10 @@ export default function FlashFlowPage() {
 
   const resetProcess = () => {
     setFlashcards([]);
-    setTextToProcess(""); 
-    setSelectedAgentIds(AGENT_PROFILES.slice(0,3).map(ap => ap.id)); 
-    setAgentDescriptions(getDefaultAgentDescriptions()); // Reset descriptions
-    setInputAreaKey(prevKey => prevKey + 1); 
+    setTextToProcess("");
+    setSelectedAgentIds(AGENT_PROFILES.slice(0,3).map(ap => ap.id));
+    setAgentDescriptions(getDefaultAgentDescriptions());
+    setInputAreaKey(Date.now()); // Change key to force re-mount of InputArea
   };
 
   return (
@@ -107,38 +106,62 @@ export default function FlashFlowPage() {
         </div>
       </header>
 
-      <main className="container mx-auto p-4 md:p-8 flex-grow w-full max-w-4xl"> {/* Increased max-width for larger cards */}
-        {flashcards.length > 0 && !isPending ? (
-          <FlashcardViewer flashcards={flashcards} onReset={resetProcess} />
-        ) : (
-          <div className="space-y-6">
-            <InputArea key={inputAreaKey} onTextReady={handleTextReady} isLoading={isPending} />
-            <AgentSelector 
-              agents={AGENT_PROFILES} 
-              selectedAgents={selectedAgentIds} 
-              onToggleAgent={handleToggleAgent}
-              agentDescriptions={agentDescriptions}
-              onAgentDescriptionChange={handleAgentDescriptionChange}
-              isLoading={isPending}
-            />
-            <Button 
-              onClick={handleGenerateFlashcards} 
-              disabled={isPending || !textToProcess.trim() || selectedAgentIds.length === 0}
-              className="w-full py-3 text-lg rounded-md"
-              size="lg"
-            >
-              {isPending ? (
-                <>
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Generating...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="mr-2 h-5 w-5" /> Create Flashcards
-                </>
-              )}
-            </Button>
+      <main className="container mx-auto p-4 md:p-8 flex-grow w-full max-w-screen-xl"> {/* Increased max-width */}
+        <div className="md:grid md:grid-cols-12 md:gap-8">
+          {/* Left Column: Inputs & Agents OR "Start Over" Button */}
+          <div className="md:col-span-7 space-y-6">
+            {(flashcards.length === 0 && !isPending) || isPending ? (
+              <>
+                <InputArea key={inputAreaKey} onTextReady={handleTextReady} isLoading={isPending} />
+                <AgentSelector
+                  agents={AGENT_PROFILES}
+                  selectedAgents={selectedAgentIds}
+                  onToggleAgent={handleToggleAgent}
+                  agentDescriptions={agentDescriptions}
+                  onAgentDescriptionChange={handleAgentDescriptionChange}
+                  isLoading={isPending}
+                />
+                <Button
+                  onClick={handleGenerateFlashcards}
+                  disabled={isPending || !textToProcess.trim() || selectedAgentIds.length === 0}
+                  className="w-full py-3 text-lg rounded-md"
+                  size="lg"
+                >
+                  {isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="mr-2 h-5 w-5" /> Create Flashcards
+                    </>
+                  )}
+                </Button>
+              </>
+            ) : (
+              // Shown when flashcards are displayed on the right
+              <div className="flex flex-col items-center justify-center h-full p-8 bg-card rounded-lg border">
+                <Sparkles className="w-16 h-16 text-primary mb-6" />
+                <h2 className="text-2xl font-semibold mb-3 text-center">Flashcards Ready!</h2>
+                <p className="text-muted-foreground mb-8 text-center">
+                  Your flashcards are displayed on the right. <br />Want to generate a new set?
+                </p>
+                <Button onClick={resetProcess} variant="outline" size="lg" className="w-full max-w-xs">
+                  <RotateCcw className="mr-2 h-4 w-4" /> Create New Set
+                </Button>
+              </div>
+            )}
           </div>
-        )}
+
+          {/* Right Column: Flashcards Viewer (conditionally rendered) */}
+          {flashcards.length > 0 && !isPending && (
+            <div className="md:col-span-5 mt-8 md:mt-0">
+              <div className="h-[calc(100vh-220px)] md:max-h-[75vh] md:sticky md:top-24">
+                <FlashcardViewer flashcards={flashcards} />
+              </div>
+            </div>
+          )}
+        </div>
       </main>
       <footer className="w-full text-center py-8 px-4 text-sm text-muted-foreground border-t border-border">
         <p>&copy; {new Date().getFullYear()} FlashFlow. Unlock Your Learning Potential.</p>
