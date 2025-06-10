@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { GenerateFlashcardsOutput } from "@/ai/flows/generate-flashcards";
 import { Play, Pause } from 'lucide-react';
+import { Slider } from "@/components/ui/slider";
+import { Label } from "@/components/ui/label";
 
 type FlashcardData = GenerateFlashcardsOutput["flashcards"][0];
 
@@ -15,51 +17,32 @@ interface FlashcardViewerProps {
 }
 
 const AUTOSCROLL_TICK_MS = 50; // Interval for each scroll step
-const SCROLL_PIXELS_PER_TICK = 2; // Pixels to scroll per tick
 
 export function FlashcardViewer({ flashcards }: FlashcardViewerProps) {
   const [isAutoScrolling, setIsAutoScrolling] = useState(false);
+  const [scrollSpeed, setScrollSpeed] = useState(2); // Pixels per tick, initial speed
   const scrollViewportRef = useRef<HTMLDivElement>(null);
   const autoScrollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const userHasScrolledRef = useRef(false);
+  const ignoreNextScrollEventRef = useRef(false);
 
   const stopAutoScroll = useCallback(() => {
-    if (autoScrollIntervalRef.current) {
-      clearInterval(autoScrollIntervalRef.current);
-      autoScrollIntervalRef.current = null;
-    }
     setIsAutoScrolling(false);
+    // Interval clearing is handled by useEffect cleanup when isAutoScrolling becomes false
   }, []);
 
   const startAutoScroll = useCallback(() => {
-    if (autoScrollIntervalRef.current) clearInterval(autoScrollIntervalRef.current);
-    userHasScrolledRef.current = false; // Reset user scroll flag
-
     const container = scrollViewportRef.current;
     if (!container) return;
 
-    // If at the bottom, scroll to top before starting
-    if (container.scrollTop + container.clientHeight >= container.scrollHeight - 5) { // -5 for buffer
+    userHasScrolledRef.current = false;
+
+    if (container.scrollTop + container.clientHeight >= container.scrollHeight - 5) {
+      ignoreNextScrollEventRef.current = true;
       container.scrollTop = 0;
     }
-    
     setIsAutoScrolling(true);
-
-    autoScrollIntervalRef.current = setInterval(() => {
-      if (userHasScrolledRef.current) {
-        stopAutoScroll();
-        return;
-      }
-      if (container) {
-        if (container.scrollTop + container.clientHeight >= container.scrollHeight) {
-          // Reached bottom, scroll to top to loop
-          container.scrollTop = 0;
-        } else {
-          container.scrollTop += SCROLL_PIXELS_PER_TICK;
-        }
-      }
-    }, AUTOSCROLL_TICK_MS);
-  }, [stopAutoScroll]);
+  }, []);
 
   const toggleAutoScroll = () => {
     if (isAutoScrolling) {
@@ -69,20 +52,60 @@ export function FlashcardViewer({ flashcards }: FlashcardViewerProps) {
     }
   };
 
-  // Cleanup interval on component unmount or when flashcards change
+  // Effect to manage the setInterval for auto-scrolling
   useEffect(() => {
-    return () => {
-      stopAutoScroll();
-    };
-  }, [stopAutoScroll, flashcards]);
+    if (!isAutoScrolling) {
+      if (autoScrollIntervalRef.current) {
+        clearInterval(autoScrollIntervalRef.current);
+        autoScrollIntervalRef.current = null;
+      }
+      return;
+    }
 
-  // Detect manual scroll to pause auto-scroll
+    const container = scrollViewportRef.current;
+    if (!container) return;
+
+    // Clear any existing interval before setting a new one
+    if (autoScrollIntervalRef.current) {
+      clearInterval(autoScrollIntervalRef.current);
+    }
+
+    autoScrollIntervalRef.current = setInterval(() => {
+      if (userHasScrolledRef.current) {
+        stopAutoScroll(); // This will set isAutoScrolling to false and trigger effect cleanup
+        return;
+      }
+      if (container) {
+        if (container.scrollTop + container.clientHeight >= container.scrollHeight) {
+          ignoreNextScrollEventRef.current = true; // Indicate programmatic scroll
+          container.scrollTop = 0; // Loop to top
+        } else {
+          container.scrollTop += scrollSpeed; // Use current scrollSpeed
+        }
+      }
+    }, AUTOSCROLL_TICK_MS);
+
+    return () => { // Cleanup function for this effect
+      if (autoScrollIntervalRef.current) {
+        clearInterval(autoScrollIntervalRef.current);
+        autoScrollIntervalRef.current = null;
+      }
+    };
+  }, [isAutoScrolling, scrollSpeed, stopAutoScroll]);
+
+
+  // Effect to detect manual scroll and stop auto-scroll
   useEffect(() => {
     const container = scrollViewportRef.current;
     const handleManualScroll = () => {
-      if (isAutoScrolling) {
+      if (ignoreNextScrollEventRef.current) {
+        ignoreNextScrollEventRef.current = false; // Consume the flag
+        return; // Skip processing this scroll event as it was programmatic
+      }
+
+      if (isAutoScrolling) { // Only act if auto-scrolling was active
         userHasScrolledRef.current = true; // Mark that user scrolled
-        stopAutoScroll(); // Stop auto-scroll immediately
+        stopAutoScroll(); // Stop auto-scroll immediately, button state will update
       }
     };
 
@@ -94,7 +117,7 @@ export function FlashcardViewer({ flashcards }: FlashcardViewerProps) {
         container.removeEventListener('scroll', handleManualScroll);
       }
     };
-  }, [isAutoScrolling, stopAutoScroll]);
+  }, [isAutoScrolling, stopAutoScroll]); // Dependencies
 
 
   if (!flashcards || flashcards.length === 0) {
@@ -120,6 +143,21 @@ export function FlashcardViewer({ flashcards }: FlashcardViewerProps) {
           <span className="ml-2 hidden sm:inline">{isAutoScrolling ? "Pause" : "Play"}</span>
         </Button>
       </div>
+      <div className="px-4 pt-2 pb-3 border-b">
+        <Label htmlFor="speed-slider" className="text-xs text-muted-foreground block mb-1">
+          Scroll Speed
+        </Label>
+        <Slider
+          id="speed-slider"
+          min={1}
+          max={10}
+          step={1}
+          value={[scrollSpeed]}
+          onValueChange={(value) => setScrollSpeed(value[0])}
+          disabled={flashcards.length <= 1}
+          aria-label="Scroll speed control"
+        />
+      </div>
       <ScrollArea className="flex-grow" viewportRef={scrollViewportRef}>
         <div className="p-4 space-y-4">
           {flashcards.map((card, index) => (
@@ -130,3 +168,4 @@ export function FlashcardViewer({ flashcards }: FlashcardViewerProps) {
     </div>
   );
 }
+
