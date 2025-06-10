@@ -23,26 +23,28 @@ export function FlashcardViewer({ flashcards }: FlashcardViewerProps) {
   const [scrollSpeed, setScrollSpeed] = useState(2); // Pixels per tick, initial speed
   const scrollViewportRef = useRef<HTMLDivElement>(null);
   const autoScrollIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const userHasScrolledRef = useRef(false);
-  const ignoreNextScrollEventRef = useRef(false);
+  const userHasScrolledRef = useRef(false); // True if user manually scrolled, to stop auto-scroll
+  const ignoreNextScrollEventRef = useRef(false); // True if the NEXT scroll event is programmatic
 
   const stopAutoScroll = useCallback(() => {
     setIsAutoScrolling(false);
-    // Interval clearing is handled by useEffect cleanup when isAutoScrolling becomes false
+    // Interval is cleared by its own useEffect's cleanup when isAutoScrolling becomes false
   }, []);
+
 
   const startAutoScroll = useCallback(() => {
     const container = scrollViewportRef.current;
-    if (!container) return;
+    if (!container || flashcards.length <= 1) return;
 
-    userHasScrolledRef.current = false;
+    userHasScrolledRef.current = false; // Reset: user hasn't manually scrolled since starting this auto-scroll session
 
+    // If already at the bottom (or very close), scroll to top before starting
     if (container.scrollTop + container.clientHeight >= container.scrollHeight - 5) {
-      ignoreNextScrollEventRef.current = true;
+      ignoreNextScrollEventRef.current = true; // This scroll to top is programmatic
       container.scrollTop = 0;
     }
     setIsAutoScrolling(true);
-  }, []);
+  }, [flashcards.length]);
 
   const toggleAutoScroll = () => {
     if (isAutoScrolling) {
@@ -52,7 +54,7 @@ export function FlashcardViewer({ flashcards }: FlashcardViewerProps) {
     }
   };
 
-  // Effect to manage the setInterval for auto-scrolling
+  // Effect for the auto-scrolling interval
   useEffect(() => {
     if (!isAutoScrolling) {
       if (autoScrollIntervalRef.current) {
@@ -63,61 +65,59 @@ export function FlashcardViewer({ flashcards }: FlashcardViewerProps) {
     }
 
     const container = scrollViewportRef.current;
-    if (!container) return;
-
-    // Clear any existing interval before setting a new one
-    if (autoScrollIntervalRef.current) {
-      clearInterval(autoScrollIntervalRef.current);
+    // also check flashcards.length here because startAutoScroll might have been called before flashcards updated
+    if (!container || flashcards.length <= 1) {
+      stopAutoScroll();
+      return;
     }
-
+    
     autoScrollIntervalRef.current = setInterval(() => {
-      if (userHasScrolledRef.current) {
-        stopAutoScroll(); // This will set isAutoScrolling to false and trigger effect cleanup
+      if (userHasScrolledRef.current) { // If user scrolled manually, stop.
+        stopAutoScroll();
         return;
       }
       if (container) {
+        ignoreNextScrollEventRef.current = true; // Mark the upcoming scroll as programmatic
+
         if (container.scrollTop + container.clientHeight >= container.scrollHeight) {
-          ignoreNextScrollEventRef.current = true; // Indicate programmatic scroll
           container.scrollTop = 0; // Loop to top
         } else {
-          container.scrollTop += scrollSpeed; // Use current scrollSpeed
+          container.scrollTop += scrollSpeed;
         }
       }
     }, AUTOSCROLL_TICK_MS);
 
-    return () => { // Cleanup function for this effect
+    return () => {
       if (autoScrollIntervalRef.current) {
         clearInterval(autoScrollIntervalRef.current);
         autoScrollIntervalRef.current = null;
       }
     };
-  }, [isAutoScrolling, scrollSpeed, stopAutoScroll]);
-
+  }, [isAutoScrolling, scrollSpeed, flashcards.length, stopAutoScroll]);
 
   // Effect to detect manual scroll and stop auto-scroll
   useEffect(() => {
     const container = scrollViewportRef.current;
+    if (!container) return;
+
     const handleManualScroll = () => {
       if (ignoreNextScrollEventRef.current) {
-        ignoreNextScrollEventRef.current = false; // Consume the flag
-        return; // Skip processing this scroll event as it was programmatic
+        ignoreNextScrollEventRef.current = false; // Consume the flag for the programmatic scroll
+        return;
       }
 
-      if (isAutoScrolling) { // Only act if auto-scrolling was active
-        userHasScrolledRef.current = true; // Mark that user scrolled
-        stopAutoScroll(); // Stop auto-scroll immediately, button state will update
+      // If it's not a programmatic scroll, and we WERE auto-scrolling, it must be manual.
+      if (isAutoScrolling) {
+        userHasScrolledRef.current = true; // Mark that user initiated this scroll
+        stopAutoScroll(); // Stop auto-scroll
       }
     };
 
-    if (container) {
-      container.addEventListener('scroll', handleManualScroll, { passive: true });
-    }
+    container.addEventListener('scroll', handleManualScroll, { passive: true });
     return () => {
-      if (container) {
-        container.removeEventListener('scroll', handleManualScroll);
-      }
+      container.removeEventListener('scroll', handleManualScroll);
     };
-  }, [isAutoScrolling, stopAutoScroll]); // Dependencies
+  }, [isAutoScrolling, stopAutoScroll]);
 
 
   if (!flashcards || flashcards.length === 0) {
@@ -168,4 +168,3 @@ export function FlashcardViewer({ flashcards }: FlashcardViewerProps) {
     </div>
   );
 }
-
