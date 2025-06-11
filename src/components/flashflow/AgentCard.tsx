@@ -70,7 +70,7 @@ export function AgentCard({
               />
               <Label htmlFor={checkboxId} className="text-sm">Select</Label>
             </div>
-            <Button variant="outline" size="sm" onClick={handleFlip} disabled={isLoading}>
+            <Button variant="ghost" size="sm" onClick={handleFlip} disabled={isLoading}>
               <RotateCcw className="mr-1 h-4 w-4" /> Flip
             </Button>
           </CardFooter>
@@ -94,7 +94,7 @@ export function AgentCard({
             />
           </CardContent>
           <CardFooter className="w-full flex justify-end p-3 border-t">
-            <Button variant="outline" size="sm" onClick={handleFlip} disabled={isLoading}>
+            <Button variant="ghost" size="sm" onClick={handleFlip} disabled={isLoading}>
               <RotateCcw className="mr-1 h-4 w-4" /> Flip Back
             </Button>
           </CardFooter>
@@ -103,3 +103,4 @@ export function AgentCard({
     </div>
   );
 }
+
