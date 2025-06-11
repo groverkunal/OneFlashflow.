@@ -2,10 +2,10 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import type { GenerateFlashcardsOutput } from "@/ai/flows/generate-flashcards"; 
+import type { GenerateFlashcardsOutput } from "@/ai/flows/generate-flashcards";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { AGENT_PROFILES } from "@/config/agent-profiles"; // Removed type AgentProfile as it's not directly used here
+import { AGENT_PROFILES } from "@/config/agent-profiles";
 import { cn } from "@/lib/utils";
 
 type FlashcardData = GenerateFlashcardsOutput["flashcards"][0];
@@ -18,40 +18,36 @@ export function FlashcardItem({ flashcard }: FlashcardItemProps) {
   const agentIdFromTag = flashcard.agentTag?.startsWith('#') ? flashcard.agentTag.substring(1) : flashcard.agentTag;
   const agentProfile = AGENT_PROFILES.find(agent => agent.id === agentIdFromTag);
 
-  // Apply agent's background and text color. Removed 'border-opacity-50'.
-  const cardClasses = agentProfile 
-    ? cn(agentProfile.bgColorClass, agentProfile.textColorClass, 'shadow-md') 
+  const cardClasses = agentProfile
+    ? cn(agentProfile.bgColorClass, agentProfile.textColorClass, 'shadow-md')
     : 'bg-card text-card-foreground shadow-md'; // Fallback to default card styles
 
-  // Heuristic for text color to adjust internal elements
-  const isDarkTextOnLightCard = agentProfile ? agentProfile.textColorClass.includes("-900") : false; // Default to false if no profile (standard card)
+  const isDarkTextOnLightCard = agentProfile
+    ? agentProfile.textColorClass.includes("-900") || agentProfile.textColorClass.includes("gray-800")
+    : false;
 
   const textClasses = agentProfile ? agentProfile.textColorClass : 'text-card-foreground';
-  
-  // Muted text for headers like "Example:", make it slightly less prominent
-  const mutedHeaderClasses = cn(textClasses, "opacity-80"); // Adjusted opacity
+
+  const mutedHeaderClasses = cn(textClasses, "opacity-80");
 
   const separatorClasses = agentProfile
-    ? (isDarkTextOnLightCard ? "bg-black/15" : "bg-white/15") // Slightly less prominent separators
+    ? (isDarkTextOnLightCard ? "bg-black/15" : "bg-white/15")
     : "bg-border";
 
-  // Badge styling
-  const badgeWrapperFooterClasses = agentProfile 
-    ? (isDarkTextOnLightCard ? "border-black/10 bg-black/5" : "border-white/10 bg-black/10") 
+  const badgeWrapperFooterClasses = agentProfile
+    ? (isDarkTextOnLightCard ? "border-black/10 bg-black/5" : "border-white/10 bg-black/10")
     : "bg-muted/50 border-border";
-  
+
   let badgeFinalClasses = "text-xs font-mono";
   if (agentProfile) {
-    if (isDarkTextOnLightCard) { // Dark text on Light Card (e.g., amber)
-      badgeFinalClasses = cn(badgeFinalClasses, agentProfile.textColorClass, "border", "border-current", "bg-transparent"); // Outline style
-    } else { // Light text on Dark Card (e.g., sky)
-      // Badge blends with card background, text uses agent's text color
-      badgeFinalClasses = cn(badgeFinalClasses, agentProfile.textColorClass, "bg-transparent"); 
+    if (isDarkTextOnLightCard) {
+      badgeFinalClasses = cn(badgeFinalClasses, agentProfile.textColorClass, "border", "border-current", "bg-transparent");
+    } else {
+      badgeFinalClasses = cn(badgeFinalClasses, agentProfile.textColorClass, "bg-transparent");
     }
-  } else { // Default badge for cards without agent profile
+  } else {
     badgeFinalClasses = cn(badgeFinalClasses, "bg-secondary text-secondary-foreground border-transparent");
   }
-
 
   return (
     <Card className={cn("w-full min-h-[200px] border flex flex-col justify-between", cardClasses)}>
@@ -85,7 +81,7 @@ export function FlashcardItem({ flashcard }: FlashcardItemProps) {
       </CardContent>
       {flashcard.agentTag && (
         <CardFooter className={cn("p-3 border-t", badgeWrapperFooterClasses)}>
-          <Badge variant="outline" /* Variant prop might be overridden by cn() */ className={badgeFinalClasses}>
+          <Badge variant="outline" className={badgeFinalClasses}>
             {flashcard.agentTag}
           </Badge>
         </CardFooter>

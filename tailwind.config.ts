@@ -1,3 +1,4 @@
+
 import type {Config} from 'tailwindcss';
 
 export default {
@@ -6,6 +7,21 @@ export default {
     './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
     './src/components/**/*.{js,ts,jsx,tsx,mdx}',
     './src/app/**/*.{js,ts,jsx,tsx,mdx}',
+  ],
+  safelist: [
+    {
+      pattern: /bg-(sky|emerald|violet|amber|pink|teal|orange|indigo|lime|rose)-(400|500)/,
+    },
+    {
+      pattern: /text-(sky|emerald|violet|pink|teal|orange|indigo|rose)-(50)/,
+    },
+    {
+      pattern: /text-(amber|lime)-(900)/,
+    },
+    // Individual classes can also be safelisted if needed, e.g.:
+    // 'bg-sky-500', 'text-sky-50',
+    // 'bg-emerald-500', 'text-emerald-50',
+    // ...etc.
   ],
   theme: {
     extend: {
