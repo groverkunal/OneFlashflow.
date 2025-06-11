@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/componen
 import type { GenerateFlashcardsOutput } from "@/ai/flows/generate-flashcards"; 
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { AGENT_PROFILES, type AgentProfile } from "@/config/agent-profiles";
+import { AGENT_PROFILES } from "@/config/agent-profiles"; // Removed type AgentProfile as it's not directly used here
 import { cn } from "@/lib/utils";
 
 type FlashcardData = GenerateFlashcardsOutput["flashcards"][0];
@@ -18,26 +18,39 @@ export function FlashcardItem({ flashcard }: FlashcardItemProps) {
   const agentIdFromTag = flashcard.agentTag?.startsWith('#') ? flashcard.agentTag.substring(1) : flashcard.agentTag;
   const agentProfile = AGENT_PROFILES.find(agent => agent.id === agentIdFromTag);
 
+  // Apply agent's background and text color. Removed 'border-opacity-50'.
   const cardClasses = agentProfile 
-    ? cn(agentProfile.bgColorClass, agentProfile.textColorClass, 'shadow-md border-opacity-50') 
+    ? cn(agentProfile.bgColorClass, agentProfile.textColorClass, 'shadow-md') 
     : 'bg-card text-card-foreground shadow-md'; // Fallback to default card styles
 
+  // Heuristic for text color to adjust internal elements
+  const isDarkTextOnLightCard = agentProfile ? agentProfile.textColorClass.includes("-900") : false; // Default to false if no profile (standard card)
+
   const textClasses = agentProfile ? agentProfile.textColorClass : 'text-card-foreground';
-  const mutedTextClasses = agentProfile 
-    ? (agentProfile.textColorClass.includes("-50") || agentProfile.textColorClass.includes("-100") ? "text-opacity-70" : "text-opacity-70")
-    : "text-muted-foreground";
   
+  // Muted text for headers like "Example:", make it slightly less prominent
+  const mutedHeaderClasses = cn(textClasses, "opacity-80"); // Adjusted opacity
+
   const separatorClasses = agentProfile
-    ? (agentProfile.textColorClass.includes("-900") ? "bg-black/20" : "bg-white/20")
+    ? (isDarkTextOnLightCard ? "bg-black/15" : "bg-white/15") // Slightly less prominent separators
     : "bg-border";
 
-  const badgeVariant = agentProfile 
-    ? (agentProfile.textColorClass.includes("-900") ? "outline" : "secondary") 
-    : "secondary";
+  // Badge styling
+  const badgeWrapperFooterClasses = agentProfile 
+    ? (isDarkTextOnLightCard ? "border-black/10 bg-black/5" : "border-white/10 bg-black/10") 
+    : "bg-muted/50 border-border";
   
-  const badgeTextClass = agentProfile
-    ? (badgeVariant === "secondary" ? agentProfile.textColorClass : (agentProfile.textColorClass.includes("-900") ? "text-neutral-700" : "text-neutral-200" ))
-    : "text-secondary-foreground";
+  let badgeFinalClasses = "text-xs font-mono";
+  if (agentProfile) {
+    if (isDarkTextOnLightCard) { // Dark text on Light Card (e.g., amber)
+      badgeFinalClasses = cn(badgeFinalClasses, agentProfile.textColorClass, "border", "border-current", "bg-transparent"); // Outline style
+    } else { // Light text on Dark Card (e.g., sky)
+      // Badge blends with card background, text uses agent's text color
+      badgeFinalClasses = cn(badgeFinalClasses, agentProfile.textColorClass, "bg-transparent"); 
+    }
+  } else { // Default badge for cards without agent profile
+    badgeFinalClasses = cn(badgeFinalClasses, "bg-secondary text-secondary-foreground border-transparent");
+  }
 
 
   return (
@@ -51,7 +64,7 @@ export function FlashcardItem({ flashcard }: FlashcardItemProps) {
           <>
             <Separator className={cn("my-2", separatorClasses)} />
             <div>
-              <h4 className={cn("font-semibold text-xs uppercase tracking-wider", mutedTextClasses, textClasses)}>Example:</h4>
+              <h4 className={cn("font-semibold text-xs uppercase tracking-wider", mutedHeaderClasses)}>Example:</h4>
               <p className={cn("font-sans text-xs italic mt-1", textClasses)}>{flashcard.example}</p>
             </div>
           </>
@@ -60,7 +73,7 @@ export function FlashcardItem({ flashcard }: FlashcardItemProps) {
           <>
             <Separator className={cn("my-2", separatorClasses)} />
             <div>
-              <h4 className={cn("font-semibold text-xs uppercase tracking-wider", mutedTextClasses, textClasses)}>Related Concepts:</h4>
+              <h4 className={cn("font-semibold text-xs uppercase tracking-wider", mutedHeaderClasses)}>Related Concepts:</h4>
               <ul className={cn("list-disc list-inside font-sans text-xs mt-1 space-y-0.5", textClasses)}>
                 {flashcard.relatedConcepts.map((concept, index) => (
                   <li key={index}>{concept}</li>
@@ -71,13 +84,8 @@ export function FlashcardItem({ flashcard }: FlashcardItemProps) {
         )}
       </CardContent>
       {flashcard.agentTag && (
-        <CardFooter className={cn("p-3 border-t", 
-          agentProfile ? (agentProfile.textColorClass.includes("-900") ? "border-black/20 bg-black/5" : "border-white/20 bg-black/10") : "bg-muted/50 border-border"
-        )}>
-          <Badge variant={badgeVariant} className={cn("text-xs font-mono", badgeTextClass, 
-            badgeVariant === "secondary" && agentProfile ? `${agentProfile.bgColorClass} border-transparent hover:${agentProfile.bgColorClass}` : '',
-            badgeVariant === "outline" && agentProfile ? `border-current` : ''
-          )}>
+        <CardFooter className={cn("p-3 border-t", badgeWrapperFooterClasses)}>
+          <Badge variant="outline" /* Variant prop might be overridden by cn() */ className={badgeFinalClasses}>
             {flashcard.agentTag}
           </Badge>
         </CardFooter>

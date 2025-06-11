@@ -51,16 +51,22 @@ export function AgentCard({
   const cardId = `agent-card-${agent.id}`;
   const checkboxId = `agent-checkbox-${agent.id}`;
 
-  const cardClasses = cn(
-    agent.bgColorClass, 
-    agent.textColorClass,
-    'border-opacity-50' // Make border slightly less prominent on colored cards
-  );
+  // Apply agent's background and text color. Removed 'border-opacity-50' for a more solid border.
+  const cardClasses = cn(agent.bgColorClass, agent.textColorClass);
 
-  const buttonTextClass = agent.textColorClass.includes("50") || agent.textColorClass.includes("100") ? "text-neutral-800 hover:text-neutral-900" : "text-white hover:text-neutral-200";
-  const buttonBgClass = agent.textColorClass.includes("50") || agent.textColorClass.includes("100") ? "hover:bg-black/10" : "hover:bg-white/10";
+  // Heuristic: if textColorClass includes "-900", assume it's dark text on a light card background.
+  // Otherwise, assume it's light text (e.g., includes "-50", "-100", or is "text-white") on a dark card background.
+  const isDarkTextOnLightCard = agent.textColorClass.includes("-900");
 
-  const inputBgClass = agent.textColorClass.includes("50") || agent.textColorClass.includes("100") ? "bg-white/70 text-neutral-900 placeholder:text-neutral-500" : "bg-black/20 text-white placeholder:text-neutral-300";
+  const buttonTextClass = isDarkTextOnLightCard ? "text-neutral-800 hover:text-neutral-900" : "text-white hover:text-neutral-200";
+  const buttonBgClass = isDarkTextOnLightCard ? "hover:bg-black/10" : "hover:bg-white/10";
+  const checkboxClasses = isDarkTextOnLightCard 
+    ? "border-neutral-700 data-[state=checked]:bg-neutral-700 data-[state=checked]:text-white" 
+    : "border-neutral-200 data-[state=checked]:bg-neutral-200 data-[state=checked]:text-neutral-800";
+  const cardFooterBorderClass = isDarkTextOnLightCard ? "border-black/20" : "border-white/20";
+  const textareaClasses = isDarkTextOnLightCard 
+    ? "bg-white/70 text-neutral-900 placeholder:text-neutral-500 border-black/30 focus-visible:ring-neutral-700" 
+    : "bg-black/20 text-white placeholder:text-neutral-300 border-white/30 focus-visible:ring-neutral-300";
 
 
   return (
@@ -72,7 +78,7 @@ export function AgentCard({
             <agent.icon className={cn("w-12 h-12 mb-2", agent.textColorClass)} />
             <CardTitle className={cn("text-lg font-semibold", agent.textColorClass)}>{agent.name}</CardTitle>
           </CardHeader>
-          <CardFooter className={cn("w-full flex justify-between items-center p-3 border-t", agent.textColorClass.includes("900") ? "border-black/20" : "border-white/20")}>
+          <CardFooter className={cn("w-full flex justify-between items-center p-3 border-t", cardFooterBorderClass)}>
             <div className="flex items-center space-x-2">
               <Checkbox
                 id={checkboxId}
@@ -80,9 +86,7 @@ export function AgentCard({
                 onCheckedChange={() => onToggleSelected(agent.id)}
                 disabled={isLoading}
                 aria-labelledby={`${cardId}-title`}
-                className={cn(
-                  agent.textColorClass.includes("900") ? "border-neutral-700 data-[state=checked]:bg-neutral-700 data-[state=checked]:text-white" : "border-neutral-200 data-[state=checked]:bg-neutral-200 data-[state=checked]:text-neutral-800"
-                )}
+                className={checkboxClasses}
               />
               <Label htmlFor={checkboxId} className={cn("text-sm", agent.textColorClass)}>Select</Label>
             </div>
@@ -91,7 +95,7 @@ export function AgentCard({
               size="sm" 
               onClick={handleFlip} 
               disabled={isLoading}
-              className={cn(buttonTextClass, buttonBgClass)}
+              className={cn(buttonTextClass, buttonBgClass, "focus-visible:ring-offset-0")} // ring-offset-0 for better look on colored bg
             >
               <RotateCcw className="mr-1 h-4 w-4" /> Flip
             </Button>
@@ -109,19 +113,19 @@ export function AgentCard({
               onChange={handleDescriptionTextChange}
               onBlur={handleDescriptionBlur}
               placeholder={`Define ${agent.name}'s role...`}
-              className={cn("w-full h-full resize-none text-sm border-none ring-0 focus:ring-0 focus-visible:ring-0", inputBgClass)}
+              className={cn("w-full h-full resize-none ring-0 focus:ring-0 focus-visible:ring-2", textareaClasses)}
               rows={5}
               disabled={isLoading}
               aria-label={`${agent.name} description`}
             />
           </CardContent>
-          <CardFooter className={cn("w-full flex justify-end p-3 border-t", agent.textColorClass.includes("900") ? "border-black/20" : "border-white/20")}>
+          <CardFooter className={cn("w-full flex justify-end p-3 border-t", cardFooterBorderClass)}>
             <Button 
               variant="ghost" 
               size="sm" 
               onClick={handleFlip} 
               disabled={isLoading}
-              className={cn(buttonTextClass, buttonBgClass)}
+              className={cn(buttonTextClass, buttonBgClass, "focus-visible:ring-offset-0")}
             >
               <RotateCcw className="mr-1 h-4 w-4" /> Flip Back
             </Button>
