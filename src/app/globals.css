@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -122,7 +123,8 @@
   height: 100%;
   -webkit-backface-visibility: hidden; /* Safari */
   backface-visibility: hidden;
-  @apply rounded-lg border bg-card text-card-foreground flex flex-col; 
+  @apply rounded-lg border flex flex-col; 
+  /* Removed: bg-card text-card-foreground - these are now dynamic */
 }
 .flip-card-back {
   transform: rotateY(180deg);
