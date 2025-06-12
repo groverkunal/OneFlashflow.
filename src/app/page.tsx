@@ -62,10 +62,15 @@ export default function FlashFlowPage() {
         const agentsToPass: GenerateFlashcardsInput['agents'] = selectedAgentIds.map(id => {
           const profile = AGENT_PROFILES.find(p => p.id === id);
           if (!profile) throw new Error(`Agent profile not found for id: ${id}`);
+          
+          const editedDescription = agentDescriptions[id];
+          const finalDescription = (editedDescription !== undefined && editedDescription.trim() !== '') 
+                                     ? editedDescription 
+                                     : profile.description;
           return {
             id: profile.id,
             name: profile.name,
-            description: agentDescriptions[id] || profile.description,
+            description: finalDescription,
           };
         });
 
@@ -106,9 +111,8 @@ export default function FlashFlowPage() {
         </div>
       </header>
 
-      <main className="container mx-auto p-4 md:p-8 flex-grow w-full max-w-screen-xl"> {/* Increased max-width */}
+      <main className="container mx-auto p-4 md:p-8 flex-grow w-full max-w-screen-xl">
         <div className="md:grid md:grid-cols-12 md:gap-8">
-          {/* Left Column: Inputs & Agents OR "Start Over" Button */}
           <div className="md:col-span-7 space-y-6">
             {(flashcards.length === 0 && !isPending) || isPending ? (
               <>
@@ -139,7 +143,6 @@ export default function FlashFlowPage() {
                 </Button>
               </>
             ) : (
-              // Shown when flashcards are displayed on the right
               <div className="flex flex-col items-center justify-center h-full p-8 bg-card rounded-lg border">
                 <Sparkles className="w-16 h-16 text-primary mb-6" />
                 <h2 className="text-2xl font-semibold mb-3 text-center">Flashcards Ready!</h2>
@@ -153,7 +156,6 @@ export default function FlashFlowPage() {
             )}
           </div>
 
-          {/* Right Column: Flashcards Viewer (conditionally rendered) */}
           {flashcards.length > 0 && !isPending && (
             <div className="md:col-span-5 mt-8 md:mt-0">
               <div className="h-[calc(100vh-220px)] md:max-h-[75vh] md:sticky md:top-24">
