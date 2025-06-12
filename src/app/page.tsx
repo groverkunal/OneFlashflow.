@@ -9,7 +9,9 @@ import { FlashcardViewer } from "@/components/flashflow/FlashcardViewer";
 import { AGENT_PROFILES, type AgentProfile } from "@/config/agent-profiles";
 import { generateFlashcards, type GenerateFlashcardsOutput, type GenerateFlashcardsInput } from "@/ai/flows/generate-flashcards";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Sparkles, RotateCcw } from 'lucide-react';
+import { Loader2, Sparkles, RotateCcw, LogIn, LogOut } from 'lucide-react';
+import { auth } from '@/lib/firebase'; // Import Firebase auth
+import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, type User } from 'firebase/auth';
 
 type Flashcard = GenerateFlashcardsOutput["flashcards"][0];
 
@@ -28,7 +30,36 @@ export default function FlashFlowPage() {
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
-  const [inputAreaKey, setInputAreaKey] = useState(Date.now()); // Use Date.now() for a unique key
+  const [inputAreaKey, setInputAreaKey] = useState(Date.now());
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setCurrentUser(user);
+    });
+    return () => unsubscribe(); // Cleanup subscription on unmount
+  }, []);
+
+  const handleSignIn = async () => {
+    const provider = new GoogleAuthProvider();
+    try {
+      await signInWithPopup(auth, provider);
+      toast({ title: "Signed In", description: "You've successfully signed in." });
+    } catch (error) {
+      console.error("Error signing in:", error);
+      toast({ title: "Sign In Failed", description: "Could not sign in with Google. Please try again.", variant: "destructive" });
+    }
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await signOut(auth);
+      toast({ title: "Signed Out", description: "You've successfully signed out." });
+    } catch (error) {
+      console.error("Error signing out:", error);
+      toast({ title: "Sign Out Failed", description: "Could not sign out. Please try again.", variant: "destructive" });
+    }
+  };
 
   const handleTextReady = useCallback((text: string) => {
     setTextToProcess(text);
@@ -64,6 +95,7 @@ export default function FlashFlowPage() {
           if (!profile) throw new Error(`Agent profile not found for id: ${id}`);
           
           const editedDescription = agentDescriptions[id];
+          // Use edited description if it's not undefined and not just whitespace
           const finalDescription = (editedDescription !== undefined && editedDescription.trim() !== '') 
                                      ? editedDescription 
                                      : profile.description;
@@ -95,19 +127,37 @@ export default function FlashFlowPage() {
     setTextToProcess("");
     setSelectedAgentIds(AGENT_PROFILES.slice(0,3).map(ap => ap.id));
     setAgentDescriptions(getDefaultAgentDescriptions());
-    setInputAreaKey(Date.now()); // Change key to force re-mount of InputArea
+    setInputAreaKey(Date.now()); 
   };
 
   return (
     <div className="min-h-screen flex flex-col items-center bg-background text-foreground font-sans selection:bg-accent selection:text-accent-foreground">
-      <header className="w-full py-12 md:py-16 px-4 md:px-8 ">
-        <div className="container mx-auto flex flex-col items-center text-center">
-          <h1 className="text-4xl md:text-5xl font-semibold text-foreground">
-            FlashFlow
-          </h1>
-          <p className="mt-3 text-md md:text-lg text-muted-foreground max-w-xl">
-            Transform any text into insightful flashcards. Choose your AI agents and start learning smarter.
-          </p>
+      <header className="w-full py-10 md:py-12 px-4 md:px-8 ">
+        <div className="container mx-auto flex flex-col md:flex-row justify-between items-center text-center md:text-left">
+          <div>
+            <h1 className="text-4xl md:text-5xl font-semibold text-foreground">
+              FlashFlow
+            </h1>
+            <p className="mt-3 text-md md:text-lg text-muted-foreground max-w-xl">
+              Transform any text into insightful flashcards. Choose your AI agents and start learning smarter.
+            </p>
+          </div>
+          <div className="mt-6 md:mt-0">
+            {currentUser ? (
+              <div className="flex items-center space-x-3">
+                <span className="text-sm text-muted-foreground hidden sm:inline">
+                  Welcome, {currentUser.displayName || currentUser.email}
+                </span>
+                <Button onClick={handleSignOut} variant="outline">
+                  <LogOut className="mr-2 h-4 w-4" /> Sign Out
+                </Button>
+              </div>
+            ) : (
+              <Button onClick={handleSignIn} variant="outline">
+                <LogIn className="mr-2 h-4 w-4" /> Sign in with Google
+              </Button>
+            )}
+          </div>
         </div>
       </header>
 
@@ -171,3 +221,4 @@ export default function FlashFlowPage() {
     </div>
   );
 }
+
