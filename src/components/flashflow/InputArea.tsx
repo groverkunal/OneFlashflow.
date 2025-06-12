@@ -33,39 +33,38 @@ export function InputArea({ onTextReady, isLoading }: InputAreaProps) {
           setPastedText(text);
           onTextReady(text);
           toast({
-            title: "File Processed",
-            description: `${file.name} content has been loaded into the text area.`,
+            title: "TXT File Processed",
+            description: `Content from ${file.name} has been loaded into the text area.`,
           });
         };
         reader.readAsText(file);
       } else if (fileExtension === "pdf" || fileExtension === "docx") {
-        setPastedText(""); // Clear any existing pasted text
-        onTextReady("");   // Notify parent that text is now empty
+        setPastedText(""); 
+        onTextReady("");   
         toast({
           title: `File Type: ${fileExtension?.toUpperCase()}`,
-          description: `Uploaded ${file.name}. For ${fileExtension?.toUpperCase()} files, please copy the text content from your document and paste it into the text area below.`,
+          description: `Uploaded ${file.name}. The text area is ready for you to paste content from this ${fileExtension?.toUpperCase()} file. Direct parsing is not currently supported.`,
           variant: "default", 
-          duration: 7000, // Longer duration for this important message
+          duration: 7000,
         });
-        // Keep the file input value so the user sees the selected file, but don't clear it.
-        // If they manually paste text later, the text change handler will clear the file name.
       } else {
         setPastedText(""); 
         onTextReady("");
+        setFileName(file.name); // Keep filename displayed for unsupported types too
         toast({
-          title: "File Type Not Supported for Direct Processing",
-          description: `Uploaded ${file.name}. Please copy and paste the content from this file type.`,
+          title: "Unsupported File Type for Direct Processing",
+          description: `Uploaded ${file.name}. Please copy text from this file and paste it into the text area.`,
           variant: "default",
           duration: 7000,
         });
-        // event.target.value = ""; // Don't clear if we want them to see the file selected
-        // setFileName(null); // Only nullify if truly unsupported and we want to reset input.
       }
     } else {
+      // User cancelled file dialog or no file selected
       setFileName(null);
-      // If no file is selected (e.g., user cancels dialog), ensure text area reflects this
-      // Only clear if pastedText wasn't manually entered.
-      // This logic might need refinement based on desired UX when canceling file selection.
+      // Optionally, you might want to clear pastedText if a file was previously loaded
+      // and now the file input is cleared. For now, we'll leave pastedText as is.
+      // setPastedText("");
+      // onTextReady("");
     }
   }, [onTextReady, toast]);
 
@@ -73,10 +72,10 @@ export function InputArea({ onTextReady, isLoading }: InputAreaProps) {
     const newText = event.target.value;
     setPastedText(newText);
     onTextReady(newText);
-     if (newText && fileName) { // If user starts typing after "uploading" a PDF/DOCX
+     if (newText && fileName) { 
         setFileName(null); 
         const fileInput = document.getElementById('file-upload') as HTMLInputElement;
-        if (fileInput) fileInput.value = ""; // Clear the file input visually
+        if (fileInput) fileInput.value = ""; 
      }
   };
   
@@ -130,3 +129,4 @@ export function InputArea({ onTextReady, isLoading }: InputAreaProps) {
     </Card>
   );
 }
+
