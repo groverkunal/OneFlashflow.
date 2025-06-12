@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useCallback } from 'react';
@@ -23,58 +24,83 @@ export function InputArea({ onTextReady, isLoading }: InputAreaProps) {
     const file = event.target.files?.[0];
     if (file) {
       setFileName(file.name);
-      if (file.type === "text/plain") {
+      const fileExtension = file.name.split('.').pop()?.toLowerCase();
+
+      if (fileExtension === "txt") {
         const reader = new FileReader();
         reader.onload = (e) => {
           const text = e.target?.result as string;
           setPastedText(text);
           onTextReady(text);
+          toast({
+            title: "File Processed",
+            description: `${file.name} content has been loaded into the text area.`,
+          });
         };
         reader.readAsText(file);
-      } else {
+      } else if (fileExtension === "pdf" || fileExtension === "docx") {
+        setPastedText(""); // Clear any existing pasted text
+        onTextReady("");   // Notify parent that text is now empty
         toast({
-          title: "File Type Not Supported",
-          description: `Currently, only .txt files can be automatically processed. For ${file.type}, please copy and paste the content.`,
-          variant: "destructive",
+          title: `File Type: ${fileExtension?.toUpperCase()}`,
+          description: `Uploaded ${file.name}. For ${fileExtension?.toUpperCase()} files, please copy the text content from your document and paste it into the text area below.`,
+          variant: "default", 
+          duration: 7000, // Longer duration for this important message
         });
-        event.target.value = ""; 
-        setFileName(null);
+        // Keep the file input value so the user sees the selected file, but don't clear it.
+        // If they manually paste text later, the text change handler will clear the file name.
+      } else {
+        setPastedText(""); 
+        onTextReady("");
+        toast({
+          title: "File Type Not Supported for Direct Processing",
+          description: `Uploaded ${file.name}. Please copy and paste the content from this file type.`,
+          variant: "default",
+          duration: 7000,
+        });
+        // event.target.value = ""; // Don't clear if we want them to see the file selected
+        // setFileName(null); // Only nullify if truly unsupported and we want to reset input.
       }
+    } else {
+      setFileName(null);
+      // If no file is selected (e.g., user cancels dialog), ensure text area reflects this
+      // Only clear if pastedText wasn't manually entered.
+      // This logic might need refinement based on desired UX when canceling file selection.
     }
   }, [onTextReady, toast]);
 
-  const handleTextChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => { // Changed to HTMLTextAreaElement
+  const handleTextChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newText = event.target.value;
     setPastedText(newText);
     onTextReady(newText);
-     if (newText && fileName) { 
+     if (newText && fileName) { // If user starts typing after "uploading" a PDF/DOCX
         setFileName(null); 
         const fileInput = document.getElementById('file-upload') as HTMLInputElement;
-        if (fileInput) fileInput.value = "";
+        if (fileInput) fileInput.value = ""; // Clear the file input visually
      }
   };
   
   return (
-    <Card className="w-full"> {/* Removed shadow-lg */}
+    <Card className="w-full">
       <CardHeader>
-        <CardTitle className="font-semibold text-xl">Provide Your Content</CardTitle> {/* Adjusted font-headline and text size */}
-        <CardDescription>Upload a .txt file or paste your text below.</CardDescription>
+        <CardTitle className="font-semibold text-xl">Provide Your Content</CardTitle>
+        <CardDescription>Upload a .txt file (content loaded automatically) or paste text from any document.</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4"> {/* Reduced spacing */}
+      <CardContent className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="file-upload" className="flex items-center gap-2 cursor-pointer text-sm font-medium"> {/* Explicitly set font style */}
-            <UploadCloud className="w-4 h-4 text-primary" /> {/* Slightly smaller icon */}
-            <span>Upload File</span>
+          <Label htmlFor="file-upload" className="flex items-center gap-2 cursor-pointer text-sm font-medium">
+            <UploadCloud className="w-4 h-4 text-primary" />
+            <span>Upload File (.txt, .pdf, .docx)</span>
           </Label>
           <Input 
             id="file-upload" 
             type="file" 
             onChange={handleFileChange} 
             accept=".txt,.pdf,.docx" 
-            className="p-2 hover:border-primary transition-colors" // Removed border-dashed, simplified padding
+            className="p-2 hover:border-primary transition-colors"
             disabled={isLoading}
           />
-          {fileName && <p className="text-xs text-muted-foreground">Uploaded: {fileName}</p>} {/* Smaller text */}
+          {fileName && <p className="text-xs text-muted-foreground">Selected file: {fileName}</p>}
         </div>
         
         <div className="relative">
@@ -89,13 +115,13 @@ export function InputArea({ onTextReady, isLoading }: InputAreaProps) {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="text-input" className="text-sm font-medium">Paste Text</Label> {/* Explicitly set font style */}
+          <Label htmlFor="text-input" className="text-sm font-medium">Paste Text</Label>
           <Textarea
             id="text-input"
-            placeholder="Paste your content here..."
+            placeholder="Paste your content here from any source (TXT, PDF, DOCX, etc.)..."
             value={pastedText}
             onChange={handleTextChange}
-            rows={8} // Reduced rows
+            rows={8}
             className="resize-none"
             disabled={isLoading}
           />
